@@ -15,12 +15,12 @@ class _Path_pool:
     def __init__(self, pool: list) -> None:
         self.path = pool
     def take(self):
-        for i in range(0, len(self.path)):
+        for i in range(len(self.path)):
             yield self.path[i]
 
 
 class ToSgf(_Path_pool):
-    def __init__(self, img_paths) -> None:
+    def __init__(self, img_paths: list) -> None:
         super().__init__(img_paths)
 
     @staticmethod
