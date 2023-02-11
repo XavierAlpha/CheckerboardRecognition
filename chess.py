@@ -112,8 +112,6 @@ class Recongnition_base:
         chess_pd = self.chess_pd
         len_of_square = chess_pd * self.size
 
-        #matrix = [[0]*19] * 19
-        
         # Draw line for test
         board = self.board.copy()
         start_x_loc = [(i * chess_pd, 0) for i in range(self.size + 1)]
@@ -126,7 +124,7 @@ class Recongnition_base:
             cv2.line(board, p1, p2, (255,0,0), 2)
         for (p1, p2) in pair_line2:
             cv2.line(board, p1, p2, (255,0,0), 2)
-        show_img(board, 3)
+        show_img(board, 3, "Board With Line: Test chess size datas")
 
     def circle_detect(self):
         """
@@ -522,9 +520,9 @@ def saveto(filename:str, image, path: str):
     """
     save image to path (default current work directory), named "filename"
     """
-    path = os.getcwd() + path
+    path = os.path.abspath(path)
     if os.path.exists(path):
-        cv2.imwrite(path + filename, image)
+        cv2.imwrite(os.path.join(path, filename), image)
     else:
         raise NotADirectoryError
 

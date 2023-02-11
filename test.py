@@ -1,54 +1,58 @@
 import tosgf
 from tosgf import ToSgf, Detect_Chess, Preprocess, Recongnition_Num
-import unittest
+import os
 
-class IntegerArithmeticTestCase(unittest.TestCase):
-    pass
+testpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test')
 
+def saveto_test_chess():
+    if not os.path.exists(os.path.join(testpath, 'chess')):
+        os.mkdir(os.path.join(testpath, 'chess'))
+    for s in chess.chess:
+        #tosgf.show_img(s.img, 1)
+        ToSgf.saveto("chess_"+str(s.x)+"_"+str(s.y)+".png", s.img, os.path.join(testpath, 'chess'))
 
-path = ToSgf(['./opencvs/src/template.png'])
+def saveto_chess_seq():
+    if not os.path.exists(os.path.join(testpath, 'seq')):
+        os.mkdir(os.path.join(testpath, 'seq'))
+    for i in range(len(chess.chess)):
+        img_path = os.path.join(testpath, "seq"+os.sep+"{0:d}".format(i))
+        if not os.path.exists(img_path):
+            os.mkdir(img_path)
+        for j in range(len(chess.chess[i].seq)):
+            ToSgf.saveto("{0:d}.png".format(j), chess.chess[i].seq[j], img_path)
 
+def saveto_chess_num():
+        with open(num_path, 'wa', encoding='uft-8') as f:
+            for i in range(len(chess.chess)):
+                num_path = os.path.join(testpath, "numbers.txt")
+                f.writelines(list(chess.chess[i].number))
+    
+path = ToSgf([os.path.join(testpath, 'test.png')])
 for p in path.take():
-    ins = Preprocess(p)
-    tmp = ins.show_board()
-    #tosgf.show_img(tmp, 5)
-    vertex, area = ins.find_board(tmp)
-    board = ins.board(vertex)
-    #tosgf.show_img(board, 5)
+    pre_img = Preprocess(p)
+    tmp = pre_img.show_board()
+    ToSgf.show_img(tmp, 5, "Threashold")
+    vertex, area = pre_img.find_board(tmp)
+    board = pre_img.board(vertex)
+    ToSgf.show_img(board, 5, "Board")
 
+    chess = Detect_Chess(board)
+    chess.go_matrix() # draw
 
-    ins2 = Detect_Chess(board)
-    #ins2.go_matrix() # draw
+    chess.cut()
+    chess.gen_color()
+    saveto_test_chess()
 
-    ins2.cut()
-    # for s in ins2.chess:
-    #     #tosgf.show_img(s.img, 1)
-    #     tosgf.saveto("chess_"+str(s.x)+"_"+str(s.y)+".png", s.img, "./opencvs/src/")
+    chess.detect_number()
+    saveto_chess_seq()
 
-    ins2.gen_color()
-    # for s in ins2.chess:
-    #     #tosgf.show_img(s.img, 1)
-    #     tosgf.saveto("chess_"+str(s.x)+"_"+str(s.y)+".png", s.img, "./opencvs/tmp/")
+    recogn = Recongnition_Num(chess.chess)
 
-
-    ins2.detect_number()
-    def gen_chess_numbers():
-        for i in range(len(ins2.chess)):
-            img_path = "\\opencvs\\chess\\{0:d}\\".format(i)  # chess_" + str(chess.x) + "_" + str(chess.y) + "\\"
-            tosgf.mkdir(img_path)
-            for j in range(len(ins2.chess[i].seq)):
-                tosgf.saveto("{0:d}.png".format(j), ins2.chess[i].seq[j], img_path)
-    #gen_chess_numbers()
-
-    ins3 = Recongnition_Num(ins2.chess)
-    # ins3.preprocess_template_images() # move "template/0 , 1, 2 ..., 9" 's *png to "template/dataset"
-    ins3.gen_dataset()
-    x_train, x_test, y_train, y_test = ins3.gen_train_test()
-    #ins3.train_network(x_train, x_test, y_train, y_test)
+    recogn.gen_dataset()
     
-    ins3.load_model()
-    
-    ins3.gen_chess_num() # succeed! all 279 number was recognized correctly
-    # for c in ins3.chess:
-    #     print('-----------' + str(c.number))
+    x_train, x_test, y_train, y_test = recogn.gen_train_test()
+
+    recogn.load_model()
+    recogn.gen_chess_num()
+    saveto_chess_num()
 

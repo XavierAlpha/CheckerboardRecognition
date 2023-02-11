@@ -22,16 +22,15 @@ class _Path_pool:
 class ToSgf(_Path_pool):
     def __init__(self, img_paths) -> None:
         super().__init__(img_paths)
-    
+
+    @staticmethod
     def show_img(image, sec=5, name="image"):
         chess.show_img(image, sec, name)
-
+    
+    @staticmethod
     def saveto(filename:str, image, path: str):
         chess.saveto(filename, image, path)
 
-    def mkdir(path):
-        chess.mkdir(path)
-    
     def run(self):
         logger.info("Start run()")
 
