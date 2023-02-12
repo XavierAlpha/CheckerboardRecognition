@@ -4,13 +4,12 @@ from log import logger
 
 """ Training model using template"""
 
-def train_template():
+def train_template(path: list):
     logger.debug("train_template() Starting...")
     recogn = Recongnition_Num([])
-    if not os.path.exists(recogn.dataset_path):
-        recogn.preprocess_template_images() # move "template/0 , 1, 2 ..., 9" 's *png to "tmp/dataset"
-    else:
-       logger.warning("Datasets exists! Ignore preprocess_template_images().")
+    recogn.take_template_images() # default path
+    for p in path: # self-defined path
+        recogn.take_template_images(p) # move "self-defined path/0 , 1, 2 ..., 9" 's *png to "tmp/dataset"
     
     if not os.path.exists(os.path.join(recogn.dataset_path, 'datasets.csv')):
         recogn.gen_dataset()

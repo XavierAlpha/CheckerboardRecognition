@@ -1,5 +1,5 @@
 # Author: XavierAlpha
-
+import uuid
 import os
 import glob
 import cv2
@@ -84,7 +84,7 @@ class Recongnition_base:
     def __init__(self, board: cv2.Mat, size: int=19) -> None:
         self.board = board
         self.size = size
-        self.chess_pd = self.chess_diameter()
+        self.chess_pd = None
     
     def coordinate(self, loc_x, loc_y):
         # location (x,y) belong to which coordinate?
@@ -99,10 +99,22 @@ class Recongnition_base:
         # return the center of chess
         chess_pd = self.chess_pd
         return ((coor_x + 0.5) * chess_pd, (coor_y + 0.5) * chess_pd)
-
-    def chess_diameter(self):
+    
+    def chess_diameter(self, diameter=None, Margin=1):
+        """
+        If known accurate diameter of each chess, use it directly; Or caculate roughly;
+        Margin/2 mean the value of the distance between the outermost chess and the nearest boarder of board. If known accurate diameter, ignore it.
+        """
+        logger.debug("chess diameter() starts...")
         width, length = self.board.shape[0], self.board.shape[1] # accurately width==length
-        return min(width, length) // self.size # chess pieces diameter
+        rough = (min(width, length) - 2 * Margin) // self.size # chess pieces diameter
+        if diameter and diameter <= rough + 1 and diameter >= rough - 1:
+            logger.debug("Use input diameter.")
+            self.chess_pd = diameter
+        else:
+            logger.debug("Use inner caculating result")
+            self.chess_pd = rough
+        logger.debug("chess diameter() finished...")
     
     def go_matrix(self):
         """
@@ -274,7 +286,7 @@ class Detect_Chess(Recongnition_base):
             # NOTE: findContours find white contours from black background, so it should use "_INV" when threshold.
             contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Element: [(circumference, (x,y,w,h)) , ...]
+            # Element: [(area, (x,y,w,h)) , ...]
             __area_rect = [(cv2.boundingRect(item)[2] * cv2.boundingRect(item)[3], cv2.boundingRect(item)) for item in contours]
             __area_rect = sorted(__area_rect, key= lambda i: i[0])
 
@@ -324,7 +336,7 @@ class Detect_Chess(Recongnition_base):
                 x, y, w, h = item[1]
                 #cv2.rectangle(full_nums, (x, y), (x + w, y + h), (0,0,255), 1) # draw lines in "full_nums" image for showing the whole numbers
                 seq.append(img.copy()[y:y+h, x:x+w])
-            #seq.append(full_nums) # seq's first is the summary image
+            #show_img(full_nums, 1)
             chess.seq = seq # write to chess's property
         logger.debug("detect_number() finished.")
         logger.debug("Set the 'seq' property. ")
@@ -353,26 +365,72 @@ class Recongnition_Num():
     def model_path(self):
         return self._modelpath
 
-    def preprocess_template_images(self, path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template')) -> str:
+    def take_template_images(self, path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template')) -> str:
         """
-        load from the "template" directory located at the same level as current code, and its next level directories named 0, 1, ..., 9 , rename images to "{label}_{number}.png" and save to tmp dataset.
-        move images in template to tmp/dataset
+        Swallow the template images of number 0,1,2...,9, rename and move to tmp/dataset.
+        Also if path not default, the format of directory is like this:
+        ```
+        -'path'
+          - '0'
+             *.png
+          - '1'
+             *.png
+          ...
+          - '9'
+             *.png
+        ```
         """
         logger.debug("preprocess_template_images() starting...")
         if not os.path.isdir(path):
-            raise FileExistsError
-        count = 0
+            raise FileExistsError("{0} Not Exists or Not A Directory".format(path))
+        if not os.path.exists(self.dataset_path):
+            os.mkdir(self.dataset_path)
+        
         abs = os.path.abspath(path)
         dirs = glob.glob(os.path.join(abs, '[0-9]'))
         dirs = sorted(dirs, key = lambda fn: os.path.basename(fn)) # sorted by filename
+        if len(dirs) != 10:
+            raise FileExistsError("Directory from 0 - 9 not satisfied")
+        
+        last_index = 0
+        count = 0
+        if not os.path.exists(os.path.join(self.dataset_path, 'tmp')):
+            with open(os.path.join(self.dataset_path, 'tmp'), 'w', encoding='utf-8') as f:
+                f.write(str(0))
+        with open(os.path.join(self.dataset_path, 'tmp'), 'r', encoding='utf-8') as f:
+            try:
+                last_index = int(f.read())
+            except IOError as e:
+                logger.error(e)
+            except TypeError as e:
+                logger.error(e)
+            except ValueError as e:
+                logger.error(e)
+            except Exception as e:
+                logger.error(e)
+            else:
+                logger.debug("Read template image count from tmp succeed.")
+        
         for i in range(len(dirs)):
             for p in glob.iglob(os.path.join(dirs[i], '*.png')):
-                if not os.path.exists(self.dataset_path):
-                    os.mkdir(self.dataset_path)
-                os.rename(p, os.path.join(self.dataset_path, '{0:d}_{1:d}.png'.format(i, count)))
-                count += 1
-        logger.warn("Original images were moved to {0}".format(self.dataset_path))
-        logger.debug("Counting {0:d} template images.".format(count))
+                count += 1 
+                os.rename(p, os.path.join(self.dataset_path, '{0:d}_{1:d}_{2}.png'.format(i, last_index + count, str(uuid.uuid4()))))
+        
+        if count > 0:
+            with open(os.path.join(self.dataset_path, 'tmp'), 'w', encoding='utf-8') as f:
+                try:
+                    f.write(str(last_index + count))
+                except IOError as e:
+                    logger.error(e)
+                except Exception as e:
+                    logger.error(e)
+                else:
+                    logger.debug("Write count to tmp succeed.")
+        
+            logger.warn("Original images were moved to {0}".format(self.dataset_path))
+            logger.debug("Counting {0:d} template images.".format(last_index + count  + 1))
+        else:
+            logger.debug("No new template images read")
         logger.debug("preprocess_template_images() finished.")
     
     def gen_dataset(self):
@@ -492,7 +550,10 @@ class Recongnition_Num():
         vals = []
         for model in self.model:
             p = model.predict(p_img)
-            vals.append(np.argmax(p[0]))
+            number = np.argmax(p[0])
+            if p[0][number] <= 0.9: # fails if anyone not satisfied
+                return -1
+            vals.append(number)
         most_common_num = Counter(vals).most_common(1)
         return most_common_num[0][0]
     
@@ -503,8 +564,14 @@ class Recongnition_Num():
             number = []
             for img in c.seq:
                 num = self.predict(img)
-                number.append(str(num))
-            c.number = int(''.join(number))
+                if (num != -1):
+                    number.append(str(num))
+            try:
+                c.number = int(''.join(number))
+            except Exception as e:
+                logger.error(e)
+                logger.error("ERROR! There are empty images of number in chess.seq, check 'seq' directory!")
+                logger.error("Which means the number on chess is not detected and cut into pieces correctly!")
             count += 1
         logger.debug("Totally {0} numbers generated.".format(count))
         logger.debug("Finish setting every chess's number property")
