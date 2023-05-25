@@ -59,5 +59,5 @@ class ToSgf(_Path_pool):
         logger.info("End run()")
 
 if __name__ == "__main__":
-   ins = ToSgf(["./opencvs/src/src1.png"], ["./template"])
+   ins = ToSgf(["./src/src1.png"], [])
    ins.run()
